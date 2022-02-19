@@ -42,10 +42,14 @@ fn main() {
                 words.retain(|&word| pattern.contains(string_index(word.to_string(), i)))
             }
 
-            println!("");
+            if words.len() == 0 {
+                print!("\x1b[91mNo solutions...\x1b[0m")
+            } else {
+                println!("");
 
-            for i in 0..words.len() {
-                println!("\x1b[97m\x1b[1m{}. \x1b[32m{}", i + 1, words[i])
+                for i in 0..words.len() {
+                    println!("\x1b[97m\x1b[1m{}. \x1b[32m{}", i + 1, words[i])
+                }
             }
         }
     }
