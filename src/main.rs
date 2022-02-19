@@ -29,6 +29,7 @@ fn main() {
             words.retain(|&word| word.chars().count() > 0);
 
             for i in 0..5 {
+                let mut alphabet: Vec<&str> = "abcdefghijklmnopqrstuvwxyz".split("").collect();
                 let mut pattern = String::new();
                 println!(
                     "\x1b[97;1mAll possible letters in position \x1b[33m{}\x1b[97m:\x1b[22m",
@@ -38,6 +39,10 @@ fn main() {
                     .read_line(&mut pattern)
                     .expect("Couldn't read pattern input.");
                 pattern = pattern.trim().to_string();
+                if string_index(pattern.clone(), 0) == '^' {
+                    alphabet.retain(|&letter| !pattern.contains(letter));
+                    pattern = alphabet.join("");
+                }
                 // only keep elements whose letter at index i is in the pattern for index i
                 words.retain(|&word| pattern.contains(string_index(word.to_string(), i)))
             }
