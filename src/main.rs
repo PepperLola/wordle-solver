@@ -1,11 +1,28 @@
 use std::fs::File;
 use std::io;
+use std::time;
+use std::thread;
 use std::io::prelude::*;
 use std::path::Path;
+use termion::{clear, cursor, color, style};
+use termion::raw::IntoRawMode;
+use termion::input::TermRead;
+use termion::event::Key;
 
 fn string_index(s: String, i: usize) -> char {
     let b: u8 = s.as_bytes()[i];
     return b as char;
+}
+
+enum LetterType {
+    INCORRECT,
+    WRONG_POSITION,
+    CORRECT
+}
+
+struct Letter {
+    character: String,
+    letterType: LetterType,
 }
 
 fn main() {
@@ -26,35 +43,62 @@ fn main() {
         Ok(_) => {
             let mut words: Vec<&str> = s.split("\n").collect();
 
-            words.retain(|&word| word.chars().count() > 0);
+            words.retain(|&word| word.chars().count() == 5);
 
-            for i in 0..5 {
-                let mut alphabet: Vec<&str> = "abcdefghijklmnopqrstuvwxyz".split("").collect();
-                let mut pattern = String::new();
-                println!(
-                    "\x1b[97;1mAll possible letters in position \x1b[33m{}\x1b[97m:\x1b[22m",
-                    i + 1
-                );
-                io::stdin()
-                    .read_line(&mut pattern)
-                    .expect("Couldn't read pattern input.");
-                pattern = pattern.trim().to_string();
-                if string_index(pattern.clone(), 0) == '^' {
-                    alphabet.retain(|&letter| !pattern.contains(letter));
-                    pattern = alphabet.join("");
+            let mut index: i32 = 0;
+
+            let mut stdout = io::stdout().into_raw_mode().unwrap();
+            let mut stdin = termion::async_stdin().keys();
+
+            cursor::Goto(1, 1);
+            write!(stdout, "{}{}", termion::clear::All, cursor::Goto(1, 1)).unwrap();
+
+            stdout.flush().unwrap();
+
+            let mut word: Vec<&char> = Vec::from(['', '', '', '', '']);
+
+            loop {
+                let b = stdin.next();
+                use termion::event::Key::*;
+
+                if let Some(Ok(key)) = b {
+                    match key {
+                        Key::Left => {
+                            index -= 1;
+                            while index < 1 {
+                                index += 5;
+                            }
+                            write!(stdout, "{}", cursor::Goto(index as u16, 1)).unwrap();
+                            stdout.lock().flush().unwrap();
+                        },
+                        Key::Right => {
+                            index += 1;
+                            index %= 6;
+                            if index < 1 {
+                                index = 1;
+                            }
+                            write!(stdout, "{}", cursor::Goto(index as u16, 1)).unwrap();
+                            stdout.lock().flush().unwrap();
+                        },
+                        Key::Ctrl('c') => {
+                            break;
+                        },
+                        Char(c) => {
+                            write!(stdout, "{}", c).unwrap();
+                            index += 1;
+                            index %= 6;
+                            if index < 1 {
+                                index = 1;
+                            }
+                            word[(index as usize) - 1] = &c;
+                            write!(stdout, "{}", cursor::Goto(index as u16, 1)).unwrap();
+                            stdout.lock().flush().unwrap();
+                        },
+                        _ => {},
+                    }
                 }
-                // only keep elements whose letter at index i is in the pattern for index i
-                words.retain(|&word| pattern.contains(string_index(word.to_string(), i)))
-            }
 
-            if words.len() == 0 {
-                print!("\x1b[91mNo solutions...\x1b[0m")
-            } else {
-                println!("");
-
-                for i in 0..words.len() {
-                    println!("\x1b[97m\x1b[1m{}. \x1b[32m{}", i + 1, words[i])
-                }
+                thread::sleep(time::Duration::from_millis(50));
             }
         }
     }
