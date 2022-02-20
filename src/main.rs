@@ -133,7 +133,7 @@ fn main() {
                                 let letter: Letter = word[i];
                                 match letter.letterType {
                                     LetterType::INCORRECT => words.retain(|&word| !word.contains(letter.character)),
-                                    LetterType::WRONG_POSITION => words.retain(|&word| string_index(word.to_string(), i) != letter.character),
+                                    LetterType::WRONG_POSITION => words.retain(|&word| string_index(word.to_string(), i) != letter.character && word.contains(letter.character)),
                                     LetterType::CORRECT => {
                                         words.retain(|&word| string_index(word.to_string(), i) == letter.character);
                                         known_correct.insert(i as u16, letter.character);
