@@ -36,9 +36,9 @@ fn previous_type(t: LetterType) -> LetterType {
 
 fn type_color_string(t: LetterType) -> String {
     match t {
-        LetterType::INCORRECT => return String::from("\x1b[90m"),
-        LetterType::WRONG_POSITION => return String::from("\x1b[33m"),
-        LetterType::CORRECT => return String::from("\x1b[32;1m"),
+        LetterType::INCORRECT => return String::from("\x1b[100m"),
+        LetterType::WRONG_POSITION => return String::from("\x1b[43m"),
+        LetterType::CORRECT => return String::from("\x1b[42;1m"),
     }
 }
 
