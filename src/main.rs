@@ -76,6 +76,7 @@ fn main() {
             words.retain(|&word| word.chars().count() == 5);
 
             let mut known_correct: HashMap<u16, char> = HashMap::new();
+            let mut known_present: HashMap<char, u16> = HashMap::new(); // uses bitwise operations; 0x11111 would be for all positions (IMPOSSIBLE!!!1!)
 
             let mut index: usize = 1;
             let mut line: u16 = 1;
@@ -132,11 +133,45 @@ fn main() {
                             for i in 0..5 {
                                 let letter: Letter = word[i];
                                 match letter.letterType {
-                                    LetterType::INCORRECT => words.retain(|&word| !word.contains(letter.character)),
-                                    LetterType::WRONG_POSITION => words.retain(|&word| string_index(word.to_string(), i) != letter.character && word.contains(letter.character)),
+                                    LetterType::INCORRECT => {
+                                    },
+                                    LetterType::WRONG_POSITION => {
+                                        let saved: u16;
+                                        match known_present.get(&letter.character) {
+                                            None => {
+                                                saved = 0b00000;
+                                            },
+                                            Some(data) => {
+                                                saved = *data;
+                                            }
+                                        }
+                                        known_present.insert(letter.character, saved | 1 << i);
+                                        words.retain(|&word| string_index(word.to_string(), i) != letter.character && word.contains(letter.character));
+                                    },
                                     LetterType::CORRECT => {
                                         words.retain(|&word| string_index(word.to_string(), i) == letter.character);
                                         known_correct.insert(i as u16, letter.character);
+                                    },
+                                }
+                            }
+                            for i in 0..5 {
+                                let letter: Letter = word[i];
+                                match letter.letterType {
+                                    LetterType::INCORRECT => {
+                                        words.retain(|&word| {
+                                            match known_present.get(&letter.character) {
+                                                None => {
+                                                    return !word.contains(letter.character);
+                                                },
+                                                Some(data) => {
+                                                    return !word.contains(letter.character) && (data & 1 << i) <= 0;
+                                                }
+                                            }
+                                        });
+                                    },
+                                    LetterType::WRONG_POSITION => {
+                                    },
+                                    LetterType::CORRECT => {
                                     },
                                 }
                             }
