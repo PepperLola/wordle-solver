@@ -77,6 +77,7 @@ fn main() {
 
             let mut known_correct: HashMap<u16, char> = HashMap::new();
             let mut known_present: HashMap<char, u16> = HashMap::new(); // uses bitwise operations; 0x11111 would be for all positions (IMPOSSIBLE!!!1!)
+            let mut known_counts: HashMap<char, u16> = HashMap::new(); // known counts for each letter; only include words that contain >= count of letter
 
             let mut index: usize = 1;
             let mut line: u16 = 1;
@@ -130,6 +131,29 @@ fn main() {
                         },
                         Char('\n') => {
                             line += 1;
+                            let mut temp_counts: HashMap<char, u16> = HashMap::new();
+                            // count letters
+                            for i in 0..5 {
+                                let letter: Letter = word[i];
+                                let mut count = 0;
+                                match letter.letterType {
+                                    LetterType::INCORRECT => {},
+                                    _ => {
+                                        match temp_counts.get(&letter.character) {
+                                            None => {
+                                                count = 1;
+                                            },
+                                            Some(stored_count) => {
+                                                count = stored_count + 1;
+                                            }
+                                        }
+                                    }
+                                }
+                                if count > 0 {
+                                    temp_counts.insert(letter.character, count);
+                                }
+                            }
+                            known_counts = temp_counts;
                             for i in 0..5 {
                                 let letter: Letter = word[i];
                                 match letter.letterType {
@@ -146,10 +170,14 @@ fn main() {
                                             }
                                         }
                                         known_present.insert(letter.character, saved | 1 << i);
-                                        words.retain(|&word| string_index(word.to_string(), i) != letter.character && word.contains(letter.character));
+                                        words.retain(|&word| {
+                                            return string_index(word.to_string(), i) != letter.character && word.contains(letter.character);
+                                        });
                                     },
                                     LetterType::CORRECT => {
-                                        words.retain(|&word| string_index(word.to_string(), i) == letter.character);
+                                        words.retain(|&word| {
+                                            return string_index(word.to_string(), i) == letter.character
+                                        });
                                         known_correct.insert(i as u16, letter.character);
                                     },
                                 }
@@ -158,20 +186,25 @@ fn main() {
                                 let letter: Letter = word[i];
                                 match letter.letterType {
                                     LetterType::INCORRECT => {
-                                        words.retain(|&word| {
-                                            match known_present.get(&letter.character) {
-                                                None => {
-                                                    return !word.contains(letter.character);
-                                                },
-                                                Some(data) => {
-                                                    return !word.contains(letter.character) && (data & 1 << i) <= 0;
-                                                }
+                                        match known_present.get(&letter.character) {
+                                            None => {
+                                                words.retain(|word| !word.contains(letter.character));
+                                            },
+                                            Some(data) => {
+                                                words.retain(|&word| string_index(word.to_string(), i) != letter.character && (data & (1 << i)) <= 0);
                                             }
-                                        });
+                                        }
                                     },
-                                    LetterType::WRONG_POSITION => {
-                                    },
-                                    LetterType::CORRECT => {
+                                    _ => {
+                                        let mut count = 1;
+                                        match known_counts.get(&letter.character) {
+                                            None => {},
+                                            Some(stored_count) => {
+                                                count = *stored_count;
+                                            }
+                                        }
+
+                                        words.retain(|&word| word.chars().filter(|c| *c == letter.character).collect::<Vec<_>>().len() >= count as usize);
                                     },
                                 }
                             }
