@@ -194,8 +194,9 @@ fn main() {
     let mut stdout = io::stdout().into_raw_mode().unwrap();
     let mut stdin = termion::async_stdin().keys();
 
-    cursor::Goto(1, 1);
-    write!(stdout, "{}{}", termion::clear::All, cursor::Goto(1, 1)).unwrap();
+    write!(stdout, "{}{}╭─┬─┬─┬─┬─╮", termion::clear::All, cursor::Goto(1, 1)).unwrap();
+    write!(stdout, "{}│ │ │ │ │ │{}", cursor::Goto(1, 2), cursor::Goto(1, 3)).unwrap();
+    write!(stdout, "╰─┴─┴─┴─┴─╯{}", cursor::Goto(2, 2)).unwrap();
 
     stdout.flush().unwrap();
 
@@ -215,7 +216,7 @@ fn main() {
                     while index < 1 {
                         index += 5;
                     }
-                    write!(stdout, "{}", cursor::Goto(index as u16, line)).unwrap();
+                    write!(stdout, "{}", cursor::Goto(index as u16 * 2, line + 1)).unwrap();
                     stdout.lock().flush().unwrap();
                 },
                 Key::Right => {
@@ -224,16 +225,16 @@ fn main() {
                     if index < 1 {
                         index = 1;
                     }
-                    write!(stdout, "{}", cursor::Goto(index as u16, line)).unwrap();
+                    write!(stdout, "{}", cursor::Goto(index as u16 * 2, line + 1)).unwrap();
                     stdout.lock().flush().unwrap();
                 },
                 Key::Up => {
                     word[index - 1].letter_type = previous_type(word[index - 1].letter_type);
-                    write!(stdout, "{}{}{}", cursor::Goto(index as u16, line), type_color_string(word[index - 1].letter_type), word[index - 1].character).unwrap();
+                    write!(stdout, "{}{}{}", cursor::Goto(index as u16 * 2, line + 1), type_color_string(word[index - 1].letter_type), word[index - 1].character).unwrap();
                 },
                 Key::Down => {
                     word[index - 1].letter_type = next_type(word[index - 1].letter_type);
-                    write!(stdout, "{}{}{}", cursor::Goto(index as u16, line), type_color_string(word[index - 1].letter_type), word[index - 1].character).unwrap();
+                    write!(stdout, "{}{}{}", cursor::Goto(index as u16 * 2, line + 1), type_color_string(word[index - 1].letter_type), word[index - 1].character).unwrap();
                 },
                 Key::Ctrl('c') => {
                     break;
@@ -249,7 +250,8 @@ fn main() {
                     for i in 0..(10 - length) {
                         write!(stdout, "{}        ", cursor::Goto(20, (i + length + 1) as u16)).unwrap();
                     }
-                    write!(stdout, "{}", cursor::Goto(index as u16, line)).unwrap();
+                    write!(stdout, "{}│ │ │ │ │ │{}", cursor::Goto(1, line + 1), cursor::Goto(1, line + 2)).unwrap();
+                    write!(stdout, "╰─┴─┴─┴─┴─╯{}", cursor::Goto(index as u16 * 2, line + 1)).unwrap();
                     stdout.lock().flush().unwrap();
                     for i in 0..5 {
                         word[i].letter_type = LetterType::INCORRECT;
@@ -270,14 +272,14 @@ fn main() {
                     } else {
                         word[index - 1].letter_type = LetterType::INCORRECT;
                     }
-                    write!(stdout, "{}", cursor::Goto(index as u16, line)).unwrap();
+                    write!(stdout, "{}", cursor::Goto(index as u16 * 2, line + 1)).unwrap();
                     write!(stdout, "{}{}", type_color_string(word[index - 1].letter_type), c).unwrap();
                     index += 1;
                     index %= 6;
                     if index < 1 {
                         index = 1;
                     }
-                    write!(stdout, "{}", cursor::Goto(index as u16, line)).unwrap();
+                    write!(stdout, "{}", cursor::Goto(index as u16 * 2, line + 1)).unwrap();
                     stdout.lock().flush().unwrap();
                 },
                 _ => {},
