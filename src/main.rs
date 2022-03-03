@@ -113,7 +113,7 @@ fn count_letters(word: &Vec<Letter>, known_counts: &mut HashMap<char, u16>) {
     }
 }
 
-fn handle_correct_wrong_position(word: &Vec<Letter>, words: &mut Vec<String>, known_present: &mut HashMap<char, u16>, known_correct: &mut HashMap<u16, char>) {
+fn handle_correct_wrong_position(word: &Vec<Letter>, words: &mut Vec<String>, known_present: &mut HashMap<char, u16>, known_correct: &mut HashMap<char, u16>) {
     for i in 0..5 {
         let letter: Letter = word[i];
         match letter.letter_type {
@@ -138,20 +138,34 @@ fn handle_correct_wrong_position(word: &Vec<Letter>, words: &mut Vec<String>, kn
                 words.retain(|word| {
                     return string_index(word.to_string(), i) == letter.character
                 });
-                known_correct.insert(i as u16, letter.character);
+                let mut data: u16 = 1 << i;
+                match known_correct.get(&letter.character) {
+                    None => {},
+                    Some(stored) => {
+                        data = stored | data;
+                    }
+                }
+                known_correct.insert(letter.character, data);
             },
         }
     }
 }
 
-fn handle_incorrect(word: &Vec<Letter>, words: &mut Vec<String>, known_present: &HashMap<char, u16>, known_counts: &HashMap<char, u16>) {
+fn handle_incorrect(word: &Vec<Letter>, words: &mut Vec<String>, known_correct: &HashMap<char, u16>, known_present: &HashMap<char, u16>, known_counts: &HashMap<char, u16>) {
     for i in 0..5 {
         let letter: Letter = word[i];
         match letter.letter_type {
             LetterType::INCORRECT => {
                 match known_present.get(&letter.character) {
                     None => {
-                        words.retain(|word| !word.contains(letter.character));
+                        match known_correct.get(&letter.character) {
+                            None => {
+                                words.retain(|word| !word.contains(letter.character));
+                            },
+                            Some(data) => {
+                                words.retain(|word| !word.contains(letter.character) || *data > 0);
+                            }
+                        }
                     },
                     Some(data) => {
                         words.retain(|word| string_index(word.to_string(), i) != letter.character && (data & (1 << i)) <= 0);
@@ -167,16 +181,18 @@ fn handle_incorrect(word: &Vec<Letter>, words: &mut Vec<String>, known_present: 
                     }
                 }
 
-                words.retain(|word| word.chars().filter(|c| *c == letter.character).collect::<Vec<_>>().len() >= count as usize);
+                words.retain(|word| {
+                    return word.chars().filter(|c| *c == letter.character).collect::<Vec<_>>().len() >= count as usize;
+                });
             },
         }
     }
 }
 
-fn parse(word: &mut Vec<Letter>, words: &mut Vec<String>, known_correct: &mut HashMap<u16, char>, known_present: &mut HashMap<char, u16>, known_counts: &mut HashMap<char, u16>) {
+fn parse(word: &mut Vec<Letter>, words: &mut Vec<String>, known_correct: &mut HashMap<char, u16>, known_present: &mut HashMap<char, u16>, known_counts: &mut HashMap<char, u16>) {
     count_letters(word, known_counts);
     handle_correct_wrong_position(word, words, known_present, known_correct);
-    handle_incorrect(word, words, known_present, known_counts);
+    handle_incorrect(word, words, known_correct, known_present, known_counts);
 }
 
 fn main() {
@@ -184,7 +200,7 @@ fn main() {
 
     words.retain(|word| word.chars().count() == 5);
 
-    let mut known_correct: HashMap<u16, char> = HashMap::new();
+    let mut known_correct: HashMap<char, u16> = HashMap::new();
     let mut known_present: HashMap<char, u16> = HashMap::new(); // uses bitwise operations; 0x11111 would be for all positions (IMPOSSIBLE!!!1!)
     let mut known_counts: HashMap<char, u16> = HashMap::new(); // known counts for each letter; only include words that contain >= count of letter
 
@@ -259,18 +275,17 @@ fn main() {
                 },
                 Char(c) => {
                     word[index - 1].character = c;
-                    let idx = &((index - 1) as u16);
-                    if known_correct.contains_key(idx) {
-                        match known_correct.get(idx) {
-                            Some(other_c) => {
-                                if other_c == &c {
-                                    word[index - 1].letter_type = LetterType::CORRECT;
-                                }
-                            },
-                            _ => {},
-                        }
-                    } else {
-                        word[index - 1].letter_type = LetterType::INCORRECT;
+                    match known_correct.get(&c) {
+                        Some(data) => {
+                            if data & (1 << (index - 1)) > 0 {
+                                word[index - 1].letter_type = LetterType::CORRECT;
+                            } else {
+                                word[index - 1].letter_type = LetterType::INCORRECT;
+                            }
+                        },
+                        _ => {
+                            word[index - 1].letter_type = LetterType::INCORRECT;
+                        },
                     }
                     write!(stdout, "{}", cursor::Goto(index as u16 * 2, line + 1)).unwrap();
                     write!(stdout, "{}{}", type_color_string(word[index - 1].letter_type), c).unwrap();
