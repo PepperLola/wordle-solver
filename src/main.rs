@@ -312,17 +312,81 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_scrambled() {
+        let mut words = get_words();
+        let mut word: Vec<Letter> = vec![
+            Letter{character: 's', letter_type: LetterType::WRONG_POSITION},
+            Letter{character: 'w', letter_type: LetterType::WRONG_POSITION},
+            Letter{character: 'k', letter_type: LetterType::WRONG_POSITION},
+            Letter{character: 'o', letter_type: LetterType::WRONG_POSITION},
+            Letter{character: 'r', letter_type: LetterType::WRONG_POSITION},
+        ];
+        parse(&mut word, &mut words, &mut HashMap::new(), &mut HashMap::new(), &mut HashMap::new());
+        assert_eq!(words.len(), 1);
+        assert_eq!(words.get(0), Some(&String::from("works")));
+    }
+
+    #[test]
     fn test_double_letter_with_triple_guess() {
         let mut words = get_words();
-        let mut word: Vec<Letter> = Vec::from([
+        let mut word: Vec<Letter> = vec![
             Letter{character: 'c', letter_type: LetterType::CORRECT},
             Letter{character: 'c', letter_type: LetterType::WRONG_POSITION},
             Letter{character: 'n', letter_type: LetterType::CORRECT},
             Letter{character: 'y', letter_type: LetterType::WRONG_POSITION},
             Letter{character: 'm', letter_type: LetterType::INCORRECT},
-        ]);
+        ];
         parse(&mut word, &mut words, &mut HashMap::new(), &mut HashMap::new(), &mut HashMap::new());
-        println!("{:?}", words);
         assert_eq!(words.len(), 1);
+        assert_eq!(words.get(0), Some(&String::from("cynic")));
+    }
+
+    #[test]
+    fn test_incorrect_then_correct_letter() {
+        let mut words = get_words();
+        let mut word: Vec<Letter> = vec![
+            Letter{character: 'e', letter_type: LetterType::INCORRECT},
+            Letter{character: 'e', letter_type: LetterType::CORRECT},
+            Letter{character: 'm', letter_type: LetterType::CORRECT},
+            Letter{character: 'r', letter_type: LetterType::WRONG_POSITION},
+            Letter{character: 'l', letter_type: LetterType::WRONG_POSITION}
+        ];
+        parse(&mut word, &mut words, &mut HashMap::new(), &mut HashMap::new(), &mut HashMap::new());
+        assert_eq!(words.len(), 1);
+        assert_eq!(words.get(0), Some(&String::from("lemur")));
+    }
+
+    #[test]
+    fn test_multiple_guesses() {
+        let mut words = get_words();
+        let mut word = vec![
+            Letter{character: 't', letter_type: LetterType::INCORRECT},
+            Letter{character: 'r', letter_type: LetterType::WRONG_POSITION},
+            Letter{character: 'a', letter_type: LetterType::INCORRECT},
+            Letter{character: 'c', letter_type: LetterType::INCORRECT},
+            Letter{character: 'e', letter_type: LetterType::INCORRECT}
+        ];
+        let mut known_correct: HashMap<char, u16> = HashMap::new();
+        let mut known_present: HashMap<char, u16> = HashMap::new();
+        let mut known_counts: HashMap<char, u16> = HashMap::new();
+        parse(&mut word, &mut words, &mut known_correct, &mut known_present, &mut known_counts);
+        word = vec![
+            Letter{character: 'r', letter_type: LetterType::WRONG_POSITION},
+            Letter{character: 'o', letter_type: LetterType::CORRECT},
+            Letter{character: 'u', letter_type: LetterType::CORRECT},
+            Letter{character: 'n', letter_type: LetterType::WRONG_POSITION},
+            Letter{character: 'd', letter_type: LetterType::INCORRECT}
+        ];
+        parse(&mut word, &mut words, &mut known_correct, &mut known_present, &mut known_counts);
+        word = vec![
+            Letter{character: 'a', letter_type: LetterType::INCORRECT},
+            Letter{character: 'm', letter_type: LetterType::WRONG_POSITION},
+            Letter{character: 'a', letter_type: LetterType::INCORRECT},
+            Letter{character: 'a', letter_type: LetterType::INCORRECT},
+            Letter{character: 'a', letter_type: LetterType::INCORRECT}
+        ];
+        parse(&mut word, &mut words, &mut known_correct, &mut known_present, &mut known_counts);
+        assert_eq!(words.len(), 1);
+        assert_eq!(words.get(0), Some(&String::from("mourn")));
     }
 }
