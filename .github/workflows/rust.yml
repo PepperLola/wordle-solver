@@ -24,3 +24,13 @@ jobs:
       with:
         name: wordle_solver
         path: target/release/wordle_solver
+    - name: Create Release
+      id: create-release
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.run_id }}
+        name: Release ${{ github.run_id }}
+        prerelease: false
+        files: ./build/libs/playerinfo*.jar
