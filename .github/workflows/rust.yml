@@ -11,12 +11,29 @@ env:
 
 jobs:
   build:
+    strategy:
+          fail-fast: false
+          matrix:
+            os: [ubuntu-latest, macos-latest, windows-latest]
 
-    runs-on: ubuntu-latest
-
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --release --verbose
     - name: Run tests
       run: cargo test --verbose
+    - uses: actions/upload-artifact@v3
+      with:
+        name: wordle_solver
+        path: target/release/wordle_solver
+    - name: Create Release
+      id: create-release
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.run_id }}
+        name: Release ${{ github.run_id }}
+        prerelease: false
+        files: ./target/release/wordle_solver
