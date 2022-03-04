@@ -73,7 +73,7 @@ fn get_words() -> Vec<String> {
     // Read the file contents into a string, returns `io::Result<usize>`
     let mut s = String::new();
     file.read_to_string(&mut s).unwrap();
-    return s.split("\n").map(|s| s.to_string()).collect();
+    return s.split("\n").map(|s| s.to_string().replace("\r", "")).collect();
 }
 
 fn count_letters(word: &Vec<Letter>, known_counts: &mut HashMap<char, u16>) {
