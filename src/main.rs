@@ -1,5 +1,4 @@
 use std::fs::File;
-use std::io;
 use std::cmp;
 use std::time;
 use std::thread;
@@ -7,10 +6,16 @@ use std::io::prelude::*;
 use std::collections::HashMap;
 use std::path::Path;
 use std::iter::Iterator;
-use termion::cursor;
-use termion::raw::IntoRawMode;
-use termion::input::TermRead;
-use termion::event::Key;
+
+use std::io::{self, Write};
+
+pub use crossterm::{
+    cursor,
+    event::{self, Event, KeyCode, KeyEvent, read, KeyModifiers},
+    execute, queue, style,
+    terminal::{self, ClearType},
+    Command, Result,
+};
 
 fn string_index(s: String, i: usize) -> char {
     let b: u8 = s.as_bytes()[i];
@@ -195,7 +200,7 @@ fn parse(word: &mut Vec<Letter>, words: &mut Vec<String>, known_correct: &mut Ha
     handle_incorrect(word, words, known_correct, known_present, known_counts);
 }
 
-fn main() {
+fn main() -> Result<()> {
     let mut words: Vec<String> = get_words();
 
     words.retain(|word| word.chars().count() == 5);
@@ -207,14 +212,39 @@ fn main() {
     let mut index: usize = 1;
     let mut line: u16 = 1;
 
-    let mut stdout = io::stdout().into_raw_mode().unwrap();
-    let mut stdin = termion::async_stdin().keys();
+    terminal::enable_raw_mode()?;
 
-    write!(stdout, "{}{}╭─┬─┬─┬─┬─╮", termion::clear::All, cursor::Goto(1, 1)).unwrap();
-    write!(stdout, "{}│ │ │ │ │ │{}", cursor::Goto(1, 2), cursor::Goto(1, 3)).unwrap();
-    write!(stdout, "╰─┴─┴─┴─┴─╯{}", cursor::Goto(2, 2)).unwrap();
+    let mut stdout = io::stdout();
 
-    stdout.flush().unwrap();
+    queue!(
+        stdout,
+        style::ResetColor,
+        terminal::Clear(ClearType::All),
+        cursor::MoveTo(1, 1)
+    )?;
+
+    write!(stdout, "╭─┬─┬─┬─┬─╮")?;
+
+    queue!(
+        stdout,
+        cursor::MoveTo(1, 2)
+    )?;
+
+    write!(stdout, "│ │ │ │ │ │")?;
+
+    queue!(
+        stdout,
+        cursor::MoveTo(1, 3)
+    )?;
+
+    write!(stdout, "╰─┴─┴─┴─┴─╯")?;
+
+    queue!(
+        stdout,
+        cursor::MoveTo(2,2)
+    )?;
+
+    stdout.flush()?;
 
     let mut word: Vec<Letter> = Vec::new();
     for _ in 0..5 {
@@ -222,89 +252,133 @@ fn main() {
     }
 
     loop {
-        let b = stdin.next();
-        use termion::event::Key::*;
+        let event = read()?;
 
-        if let Some(Ok(key)) = b {
-            match key {
-                Key::Left => {
-                    index -= 1;
-                    while index < 1 {
-                        index += 5;
-                    }
-                    write!(stdout, "{}", cursor::Goto(index as u16 * 2, line + 1)).unwrap();
-                    stdout.lock().flush().unwrap();
-                },
-                Key::Right => {
-                    index += 1;
-                    index %= 6;
-                    if index < 1 {
-                        index = 1;
-                    }
-                    write!(stdout, "{}", cursor::Goto(index as u16 * 2, line + 1)).unwrap();
-                    stdout.lock().flush().unwrap();
-                },
-                Key::Up => {
-                    word[index - 1].letter_type = previous_type(word[index - 1].letter_type);
-                    write!(stdout, "{}{}{}", cursor::Goto(index as u16 * 2, line + 1), type_color_string(word[index - 1].letter_type), word[index - 1].character).unwrap();
-                },
-                Key::Down => {
-                    word[index - 1].letter_type = next_type(word[index - 1].letter_type);
-                    write!(stdout, "{}{}{}", cursor::Goto(index as u16 * 2, line + 1), type_color_string(word[index - 1].letter_type), word[index - 1].character).unwrap();
-                },
-                Key::Ctrl('c') => {
-                    break;
-                },
-                Char('\n') => {
-                    line += 1;
-                    parse(&mut word, &mut words, &mut known_correct, &mut known_present, &mut known_counts);
-                    let length = cmp::min(10, words.len());
-                    for i in 0..length {
-                        write!(stdout, "{}        ", cursor::Goto(20, (i + 1) as u16)).unwrap();
-                        write!(stdout, "{}{}.{}", cursor::Goto(20, (i + 1) as u16), (i + 1).to_string(), words[i]).unwrap();
-                    }
-                    for i in 0..(10 - length) {
-                        write!(stdout, "{}        ", cursor::Goto(20, (i + length + 1) as u16)).unwrap();
-                    }
-                    write!(stdout, "{}│ │ │ │ │ │{}", cursor::Goto(1, line + 1), cursor::Goto(1, line + 2)).unwrap();
-                    write!(stdout, "╰─┴─┴─┴─┴─╯{}", cursor::Goto(index as u16 * 2, line + 1)).unwrap();
-                    stdout.lock().flush().unwrap();
-                    for i in 0..5 {
-                        word[i].letter_type = LetterType::INCORRECT;
-                    }
-                },
-                Char(c) => {
-                    word[index - 1].character = c;
-                    match known_correct.get(&c) {
-                        Some(data) => {
-                            if data & (1 << (index - 1)) > 0 {
-                                word[index - 1].letter_type = LetterType::CORRECT;
-                            } else {
-                                word[index - 1].letter_type = LetterType::INCORRECT;
-                            }
-                        },
-                        _ => {
+        match event {
+            Event::Key(KeyEvent { code: KeyCode::Left, .. }) => {
+                index -= 1;
+                while index < 1 {
+                    index += 5;
+                }
+                queue!(
+                    stdout,
+                    cursor::MoveTo(index as u16 * 2, line + 1)
+                )?;
+                stdout.lock().flush()?;
+            },
+            Event::Key(KeyEvent { code: KeyCode::Right, .. }) => {
+                index += 1;
+                index %= 6;
+                if index < 1 {
+                    index = 1;
+                }
+                queue!(
+                    stdout,
+                    cursor::MoveTo(index as u16 * 2, line + 1)
+                )?;
+                stdout.lock().flush()?;
+            },
+            Event::Key(KeyEvent { code: KeyCode::Up, .. }) => {
+                word[index - 1].letter_type = previous_type(word[index - 1].letter_type);
+                queue!(
+                    stdout,
+                    cursor::MoveTo(index as u16 * 2, line + 1),
+                )?;
+                write!(stdout, "{}{}", type_color_string(word[index - 1].letter_type), word[index - 1].character)?;
+            },
+            Event::Key(KeyEvent { code: KeyCode::Down, .. }) => {
+                word[index - 1].letter_type = next_type(word[index - 1].letter_type);
+                queue!(
+                    stdout,
+                    cursor::MoveTo(index as u16 * 2, line + 1)
+                )?;
+                write!(stdout, "{}{}", type_color_string(word[index - 1].letter_type), word[index - 1].character)?;
+            },
+            Event::Key(KeyEvent {modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('c'),}) => {
+                terminal::disable_raw_mode()?;
+                break;
+            },
+            Event::Key(KeyEvent { code: KeyCode::Enter, .. }) => {
+                line += 1;
+                parse(&mut word, &mut words, &mut known_correct, &mut known_present, &mut known_counts);
+                let length = cmp::min(10, words.len());
+                for i in 0..length {
+                    queue!(
+                        stdout,
+                        cursor::MoveTo(20, i as u16 + 1)
+                    )?;
+                    write!(stdout, "        ")?;
+                    queue!(
+                        stdout,
+                        cursor::MoveTo(20, i as u16 + 1),
+                    )?;
+                    write!(stdout, "{}.{}", (i + 1).to_string(), words[i])?;
+                }
+                for i in 0..(10 - length) {
+                    queue!(
+                        stdout,
+                        cursor::MoveTo(20, (i + length + 1) as u16)
+                    )?;
+                    write!(stdout, "        ")?;
+                }
+                queue!(
+                    stdout,
+                    cursor::MoveTo(1, line + 1)
+                )?;
+                write!(stdout, "│ │ │ │ │ │")?;
+                queue!(
+                    stdout,
+                    cursor::MoveTo(1, line + 2)
+                )?;
+                write!(stdout, "╰─┴─┴─┴─┴─╯")?;
+                queue!(
+                    stdout,
+                    cursor::MoveTo(index as u16 * 2, line + 1)
+                )?;
+                stdout.lock().flush()?;
+                for i in 0..5 {
+                    word[i].letter_type = LetterType::INCORRECT;
+                }
+            },
+            Event::Key(KeyEvent { code: KeyCode::Char(c), .. }) => {
+                word[index - 1].character = c;
+                match known_correct.get(&c) {
+                Some(data) => {
+                        if data & (1 << (index - 1)) > 0 {
+                            word[index - 1].letter_type = LetterType::CORRECT;
+                        } else {
                             word[index - 1].letter_type = LetterType::INCORRECT;
-                        },
-                    }
-                    write!(stdout, "{}", cursor::Goto(index as u16 * 2, line + 1)).unwrap();
-                    write!(stdout, "{}{}", type_color_string(word[index - 1].letter_type), c).unwrap();
-                    index += 1;
-                    index %= 6;
-                    if index < 1 {
-                        index = 1;
-                    }
-                    write!(stdout, "{}", cursor::Goto(index as u16 * 2, line + 1)).unwrap();
-                    stdout.lock().flush().unwrap();
-                },
-                _ => {},
-            }
-            write!(stdout, "\x1b[0m").unwrap();
-        }
+                        }
+                    },
+                    _ => {
+                        word[index - 1].letter_type = LetterType::INCORRECT;
+                    },
+                }
 
+                queue!(
+                    stdout,
+                    cursor::MoveTo(index as u16 * 2, line + 1)
+                )?;
+                write!(stdout, "{}{}", type_color_string(word[index - 1].letter_type), c)?;
+                index += 1;
+                index %= 6;
+                if index < 1 {
+                    index = 1;
+                }
+                queue!(
+                    stdout,
+                    cursor::MoveTo(index as u16 * 2, line + 1)
+                )?;
+                stdout.lock().flush()?;
+            },
+            _ => {},
+        }
+        write!(stdout, "\x1b[0m")?;
 
         thread::sleep(time::Duration::from_millis(50));
     }
+
+    Ok(())
 }
 
 #[cfg(test)]
