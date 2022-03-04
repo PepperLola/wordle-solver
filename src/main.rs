@@ -1,3 +1,4 @@
+use std::env;
 use std::fs::File;
 use std::cmp;
 use std::time;
@@ -60,8 +61,14 @@ struct Letter {
 }
 
 fn get_words() -> Vec<String> {
-    // Create a path to the desired file
-    let path = Path::new("words.txt");
+    let home: String;
+    if cfg!(target_os = "linux") || cfg!(target_os = "macos") {
+        home = env::var("HOME").unwrap();
+    } else {
+        home = env::var("APPDATA").unwrap();
+    }
+    let raw_path = home + "/.wordle_solver/words.txt";
+    let path = Path::new(&raw_path);
     let display = path.display();
 
     // Open the path in read-only mode, returns `io::Result<File>`
