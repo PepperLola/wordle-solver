@@ -33,4 +33,4 @@ jobs:
         tag_name: ${{ github.run_id }}
         name: Release ${{ github.run_id }}
         prerelease: false
-        files: ./build/libs/playerinfo*.jar
+        files: ./target/release/wordle_solver
