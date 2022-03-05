@@ -71,9 +71,23 @@ fn get_words() -> Vec<String> {
     let path = Path::new(&raw_path);
     let display = path.display();
 
-    // Open the path in read-only mode, returns `io::Result<File>`
     let mut file = match File::open(&path) {
-        Err(why) => panic!("couldn't open {}: {}", display, why),
+        Err(why) => {
+            // set variable home to environment variable HOME value based on the platform
+            let home: String;
+            if cfg!(target_os = "linux") || cfg!(target_os = "macos") {
+                home = env::var("HOME").unwrap();
+            } else {
+                home = env::var("APPDATA").unwrap();
+            }
+            std::process::Command::new("curl")
+                .arg("https://gist.githubusercontent.com/PepperLola/bbc3512ba937a56572219536b60da4fd/raw/1295fc03cabfcc7d2bd290dc75fc28a8569dc3fe/words.txt")
+                .arg("-o")
+                .arg(home + "/.wordle_solver/words.txt")
+                .output()
+                .expect("failed to execute process");
+            return get_words();
+        },
         Ok(file) => file,
     };
 
