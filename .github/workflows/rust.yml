@@ -21,6 +21,8 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build
       run: cargo build --release --verbose
+    - name: Download Words
+      run: mkdir $HOME/.wordle_solver && curl https://gist.githubusercontent.com/PepperLola/bbc3512ba937a56572219536b60da4fd/raw/1295fc03cabfcc7d2bd290dc75fc28a8569dc3fe/words.txt > $HOME/.wordle_solver/words.txt
     - name: Run tests
       run: cargo test --verbose
     - uses: actions/upload-artifact@v3
